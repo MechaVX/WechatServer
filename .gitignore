@@ -1,0 +1,5 @@
+build/*
+.vscode/
+
+main_cc
+!main_cc/
