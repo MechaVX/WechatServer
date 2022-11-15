@@ -5,6 +5,7 @@
 #include <ostream>
 #include <memory>
 #include <vector>
+#include <ctime>
 
 using std::string;
 using std::ostream;
@@ -74,11 +75,23 @@ enum FlushOperation
     flush_setting,
 };
 
+#define ACCOUNT_LEN 11
+
+inline uint32_t GetNowTimestamp()
+{
+    return (uint32_t)time(0);
+}
+
 struct TCPMessage
 {
+    uint32_t timestamp;
+    //定义服务器
+    static const string server_account;
     MessageType msg_typ;
     //如果msg_opt值<0,对客户端，表示请求失败；
     int msg_opt;
+    char sender[12];
+    char receiver[12];
     //这里的长度应包括字符'\0'
     uint32_t data_len;
     //除非data_len=0时,data_buf=nullptr，该buff无论如何应有'\0'作为结束
@@ -92,12 +105,26 @@ struct TCPMessage
     friend ostream& operator<<(ostream& out_, const TCPMessage& msg_stru);
     //自动添加末尾'\0'
     void copyDataFromString(const std::string& str);
-    //返回的string一定包含结尾'\0'
+    //除非data_buf为nullptr，否则返回的string包含结尾'\0'
     string serializeToStdString() const;
-    static shared_ptr<TCPMessage> createTCPMessage(MessageType msg_typ, int msg_opt, const vector<string>& strs);
+    void swapSenderAndReceiver();
+    static shared_ptr<TCPMessage> createTCPMessage(
+                MessageType msg_typ,
+                int msg_opt,
+                const string& receiver,
+                const string& sender = TCPMessage::server_account,
+                const std::vector<std::string>& strs = {});
     //该方法直接产生原始的数据流，返回生成后包括'\0'字符的长度
     //要保证data_buf足够长
-    static int createTCPMessageStream(MessageType msg_typ, int msg_opt, const vector<string>& strs, char *data_buf);
+    //static int createTCPMessageStream(MessageType msg_typ, int msg_opt, const vector<string>& strs, char *data_buf);
+    static int createTCPMessageStream(
+            char *data_buf,
+            MessageType msg_typ,
+            int msg_opt,
+            const string& receiver,
+            const string& sender = TCPMessage::server_account,
+            const vector<string>& strs = {}
+            );
 };
 
 

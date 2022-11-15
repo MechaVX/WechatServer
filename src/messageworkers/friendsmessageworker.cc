@@ -3,6 +3,7 @@
 #include "mysqlconfig.h"
 
 #include <iostream>
+#include <string.h>
 using namespace mysql_base_config;
 
 FriendsMessageWorker::FriendsMessageWorker(MysqlWorker *sql_worker): mysql(sql_worker) {}
@@ -34,27 +35,27 @@ ClientSocket FriendsMessageWorker::praiseMessageStruct(ClientSocket cli_fd, TCPM
 void FriendsMessageWorker::searchUser(TCPMessage *msg_stru)
 {
     vector<string> result;
-    string tmp;
-    if (msg_stru->data_len == 11)
-        tmp = "account=\'";
-    else if (msg_stru->data_len == 12)
-        tmp = "phone=\'";
+    string where = string("account=\'") + msg_stru->data_buf + string("\' or phone=\'") + msg_stru->data_buf + '\'';
     result = mysql->executeSelectCommand(
         {"account", "username"},
         mysql_tables::base_information,
-        tmp + msg_stru->data_buf + '\'',
+        where,
         2);
     if (result.empty())
     {
         //如果查找失败
-        tmp = string("fail. user ") + msg_stru->data_buf + " no " + "found.";
-        msg_stru->copyDataFromString(tmp);
+        msg_stru->swapSenderAndReceiver();
+        msg_stru->copyDataFromString(string("fail. user ") + msg_stru->data_buf + " no " + "found.");
+        
     }
     else
     {
         //如果查找成功
-        auto msg_ret = TCPMessage::createTCPMessage(tcp_standard_message::friends,
-            tcp_standard_message::search_someone,
+        auto msg_ret = TCPMessage::createTCPMessage(
+            tcp_standard_message::friends,
+            (int)tcp_standard_message::search_someone,
+            msg_stru->sender,
+            TCPMessage::server_account,
             result);
         *msg_stru = std::move(*msg_ret);
     }
@@ -63,20 +64,12 @@ void FriendsMessageWorker::searchUser(TCPMessage *msg_stru)
 ClientSocket FriendsMessageWorker::addFriend(TCPMessage *msg_stru)
 {
 
-    //result[0]为新好友账户，result[1]为本人账户，其余为申请信息留言
-    vector<string> result = this->splitDataBySpace(msg_stru->data_buf);
-    if (result.size() < 2)
-    {
-        cout << "client message format error:\n" << endl;
-        cout << msg_stru->data_buf << endl;
-        return 0;
-    }
-    string where = "account=\'" + result[0] + '\'';
+    string where = "account=\'" + string(msg_stru->receiver) + '\'';
     auto ret = mysql->executeSelectCommand({ "socket" }, mysql_tables::onlined_users, where, 1);
     if (ret.empty())
     {
         //要查找的用户不在线，先储存消息
-        file_worker.storeTCPMessageToFile(result[0], msg_stru);
+        file_worker.storeTCPMessageToFile(msg_stru->receiver, msg_stru);
     }
     else
     {
@@ -89,26 +82,23 @@ ClientSocket FriendsMessageWorker::addFriend(TCPMessage *msg_stru)
 
 ClientSocket FriendsMessageWorker::agreeAddFriend(TCPMessage *msg_stru)
 {
-    //result[0]为响应用户账号，result[1]为请求用户账号
-    vector<string> result = this->splitDataBySpace(msg_stru->data_buf);
-    
     //新增好友关系
     mysql->executeInsertCommand(
                 mysql_tables::users_relationship,
-                { result[0], result[1], "friend", result[1] });
+                { msg_stru->sender, msg_stru->receiver, "friend", msg_stru->receiver });
     mysql->executeInsertCommand(
                 mysql_tables::users_relationship,
-                { result[1], result[0], "friend", result[0] });
+                { msg_stru->receiver, msg_stru->sender, "friend", msg_stru->sender });
     
     vector<string> ret = mysql->executeSelectCommand(
                 { "socket" },
                 mysql_tables::onlined_users,
-                "account=\'" + result[1] + '\'',
+                "account=\'" + string(msg_stru->receiver) + '\'',
                 1);
     if (ret.empty())
     {
         //要查找的用户不在线，先储存消息
-        file_worker.storeTCPMessageToFile(result[0], msg_stru);
+        file_worker.storeTCPMessageToFile(msg_stru->receiver, msg_stru);
     }
     else
     {

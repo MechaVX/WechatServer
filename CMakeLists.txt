@@ -10,8 +10,8 @@ ${CMAKE_SOURCE_DIR}/inc/messageworkers
 ${CMAKE_SOURCE_DIR}/inc/files
 )
 
-set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -g -Wall -std=gnu++0x")
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -g -Wall -O2 -std=c++11")
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall -std=gnu++0x")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -O2 -std=c++11")
 
 #获取指定目录下所有文件，赋值于变量SRCX
 aux_source_directory(./src/tcpserver SRC1)
@@ -36,3 +36,11 @@ target_link_libraries(server_epoll_exe pthread mysqlclient)
 
 add_executable(mysql_example_exe main_mysql.cc)
 target_link_libraries(mysql_example_exe pthread mysqlclient)
+
+#gdb调试程序
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall -g -std=gnu++0x")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -g -DDEBUG -Wall -O0 -std=c++11")
+message("Create gdb executable file: build/gdb_server_epoll_exe")
+add_executable(gdb_server_epoll_exe ${SRCS_EPOLL})
+target_link_libraries(gdb_server_epoll_exe pthread mysqlclient)
+

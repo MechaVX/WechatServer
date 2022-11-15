@@ -189,7 +189,13 @@ void TCPServerEpoll::closeSocket(int sock)
         close(sock);
         client_fds.erase(client_fds.find(sock));
         //考虑到用户可能异常退出，这种情况下由服务器自己产生用户退出登录的数据包
-        int len = TCPMessage::createTCPMessageStream(setting, user_logout, { to_string(sock) }, data_buf);
+        int len = TCPMessage::createTCPMessageStream(
+                    data_buf,
+                    setting,
+                    (int)user_logout,
+                    TCPMessage::server_account,
+                    TCPMessage::server_account,
+                    { to_string(sock) });
         this->storeSocketReceiveData(sock, len);
         return;
     }

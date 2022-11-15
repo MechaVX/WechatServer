@@ -2,6 +2,7 @@
 #include "mysqlconfig.h"
 #include "mysqlworker.h"
 #include "fileworker.h"
+#include "tcpstandardmessage.h"
 
 #include <iostream>
 using namespace mysql_base_config;
@@ -24,19 +25,17 @@ list<TCPMessage> FlushMessageWorker::praiseMessageStruct(ClientSocket cli_fd, TC
 
 list<TCPMessage> FlushMessageWorker::flushMessages(TCPMessage *msg_stru)
 {
-    string account = msg_stru->data_buf;
+    char *account = msg_stru->sender;
     //储存需要发送的消息
     list<TCPMessage> msg_list;
     file_worker.readTCPMessageFromFile(account, msg_list);
-    
-    
     return std::move(msg_list);
 }
 
 list<TCPMessage> FlushMessageWorker::flushFriends(TCPMessage *msg_stru)
 {
-    //账号为msg_stru->data_buf全部
-    string account = msg_stru->data_buf;
+    
+    string account = msg_stru->sender;
     vector<string> ret = mysql->executeSelectCommand(
                 { "friend_account", "friend_label", "friend_nickname" },
                 mysql_tables::users_relationship,
@@ -67,9 +66,11 @@ list<TCPMessage> FlushMessageWorker::flushFriends(TCPMessage *msg_stru)
     }
     auto ret_msg = TCPMessage::createTCPMessage(
                     tcp_standard_message::flush,
-                    flush_friends,
+                    (int)flush_friends,
+                    account,
+                    TCPMessage::server_account,
                     result);
-    list<TCPMessage> ret_list(1);
-    ret_list.back() = std::move(*ret_msg);
+    list<TCPMessage> ret_list;
+    ret_list.emplace_back(std::move(*ret_msg));
     return std::move(ret_list);
 }

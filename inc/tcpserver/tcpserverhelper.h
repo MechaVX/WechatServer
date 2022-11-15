@@ -45,19 +45,23 @@ private:
 
     //为了解决TCP粘包的问题，如果判断某个socket的消息未发送完毕，先将消息使用string类储存至此
     unordered_map<ClientSocket, string> incomplete_data;
-    mutex incomplete_data_mutex;
+    //mutex incomplete_data_mutex;
 
     //服务器关闭，则该值置false
     bool running;
 
     void sqlThreadLooping();
     void sendThreadLooping();
+    //当某个账号登出时，其对应的socket资源应得到释放，即incomplete_data的资源
+    void removeSocketData(ClientSocket cli_fd);
+
 
     //根据空格分隔开TCPMessage的data_buf数据
     vector<string> splitDataBySpace(int beg_index, int end_index, char *data_buf);
     //将data_buf数据反序列化还原到TCPMessage中返回
     list<TCPMessage> praiseDataToMsgStru(ClientSocket cli_fd, vector<char>& data_buf);
-    //分析TCPMessage中的数据，执行对应操作。返回值表示要回复的客户端socket，返回0表示不需要回复
+    //分析TCPMessage中的数据，执行对应操作
+    //返回值>0表示要回复的客户端socket，返回0表示不需要回复，返回<0表示该socket的绝对值对应的账号已退出，可将资源移除
     ClientSocket convertMsgStru(ClientSocket cli_fd, TCPMessage *tcp_msg_stru);
     //sql_thread通知send_thread发送消息
     void prepareToSendMessage(ClientSocket cli_soc, const TCPMessage& msg_stru);

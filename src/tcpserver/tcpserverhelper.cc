@@ -138,8 +138,12 @@ void TCPServerHelper::sqlThreadLooping()
                 {
                     prepareToSendMessage(ret_fd, msg_stru);
                 }
+                else if (ret_fd < 0)
+                {
+                    //移除资源
+                    removeSocketData(-ret_fd);
+                }
             }
-            
             prepareToSendMessage(it->first, cache_data_list);
             cache_data_list.clear();
             recv_data_list.erase(it++);
@@ -182,103 +186,110 @@ list<TCPMessage> TCPServerHelper::praiseDataToMsgStru(ClientSocket cli_fd, vecto
     list<TCPMessage> result;
     //这里需要循环处理接收的数据
     queue<char> datas;
-
+    auto it = incomplete_data.find(cli_fd);
+    if (it != incomplete_data.end())
     {
-        //先将上次未处理完的残留数据拼接上来
-        unique_lock<mutex> lock(incomplete_data_mutex);
-        auto it = this->incomplete_data.find(cli_fd);
-        if (it != incomplete_data.end())
-        {
-            string& data = it->second;
-            for (char c: data)
-            {
-                datas.push(c);
-            }
-            incomplete_data.erase(it);
-        }
+        string& str = it->second;
+        for (char c: str)
+            datas.push(c);
+        incomplete_data.erase(it);
     }
     for (char c: recv_data)
+    {
         datas.push(c);
-    string str_data;
-    char c;
+    }
+
     while (!datas.empty())
     {
-        while (!datas.empty())
-        {
-            c = datas.front();
-            datas.pop();
-            if (c == ' ')
-                break;
-            str_data.push_back(c);
-        }
-        //说明数据接收不全，则放置incomplete_data中，等待下次与新数据合并处理
-        if (datas.empty())
-        {
-            unique_lock<mutex> lock(incomplete_data_mutex);
-            incomplete_data.insert(pair<ClientSocket, string >(cli_fd, str_data));
-            return std::move(result);
-        }
-        TCPMessage tcp_msg_stru;
-        tcp_msg_stru.msg_typ = (tcp_standard_message::MessageType)stoi(str_data);
-        str_data.clear();
-
-        while (!datas.empty())
-        {
-            c = datas.front();
-            datas.pop();
-            if (c == ' ')
-                break;
-            str_data.push_back(c);
-        }
-        if (datas.empty())
-        {
-            unique_lock<mutex> lock(incomplete_data_mutex);
-            str_data = to_string(tcp_msg_stru.msg_typ) + ' ' + str_data;
-            incomplete_data.insert(pair<ClientSocket, string >(cli_fd, str_data));
-            return std::move(result);
-        }
         
-        tcp_msg_stru.msg_opt = (tcp_standard_message::MessageType)stoi(str_data);
-        str_data.clear();
-        
-        while (!datas.empty())
+        string strs[6];
+        int index = 0;
+        //如果接收到的数据不完整，返回false
+        auto analizeDatas = [&]()
         {
-            c = datas.front();
-            datas.pop();
-            if (c == ' ')
-                break;
-            str_data.push_back(c);
-        }
-        
-        if (datas.empty() && str_data != "0" /* 考虑数据长度为0的情况，此时应是接收完毕*/)
-        {
-            unique_lock<mutex> lock(incomplete_data_mutex);
-            string tmp = to_string(tcp_msg_stru.msg_typ) + ' ' + to_string(tcp_msg_stru.msg_opt) + ' ';
-            incomplete_data.insert(pair<ClientSocket, string >(cli_fd, tmp + str_data));
-            return std::move(result);
-        }
-        
-        tcp_msg_stru.data_len = (tcp_standard_message::MessageType)stoi(str_data);
-        str_data.clear();
-        int size = datas.size();
-        if (size < tcp_msg_stru.data_len)
-        {
-            //接收不全
-            unique_lock<mutex> lock(incomplete_data_mutex);
-            string tmp = to_string(tcp_msg_stru.msg_typ) + ' ' + to_string(tcp_msg_stru.msg_opt) + ' ';
-            tmp += to_string(tcp_msg_stru.data_len) + ' ';
+            char c;
             while (!datas.empty())
             {
-                tmp.push_back(datas.front());
+                c = datas.front();
+                datas.pop();
+                if (c == ' ')
+                    break;
+                strs[index].push_back(c);
+            }
+            if (c != ' ')
+            {
+                //说明数据接收不全，则放置incomplete_data中，等待下次与新数据合并处理
+                string& str_buf = this->incomplete_data[cli_fd];
+                for (int i = 0; i < index; ++i)
+                {
+                    str_buf += strs[i] + ' ';
+                }
+                for (char c: strs[index])
+                    str_buf.push_back(c);
+                return false;
+            }
+            return true;
+        };
+
+        TCPMessage tcp_msg_stru;
+
+        if (!analizeDatas())
+            return std::move(result);
+        tcp_msg_stru.timestamp = (tcp_standard_message::MessageType)stoi(strs[index]);
+        ++index;
+
+
+        if (!analizeDatas())
+            return std::move(result);
+        tcp_msg_stru.msg_typ = (tcp_standard_message::MessageType)stoi(strs[index]);
+        ++index;
+
+
+        if (!analizeDatas())
+            return std::move(result);
+        tcp_msg_stru.msg_opt = stoi(strs[index]);
+        ++index;
+
+
+        if (!analizeDatas())
+            return std::move(result);
+        for (int i = 0; i < ACCOUNT_LEN; ++i)
+            tcp_msg_stru.sender[i] = strs[index][i];
+        ++index;
+
+
+        if (!analizeDatas())
+            return std::move(result);
+        for (int i = 0; i < ACCOUNT_LEN; ++i)
+            tcp_msg_stru.receiver[i] = strs[index][i];
+        ++index;
+
+        if (!analizeDatas())
+            return std::move(result);
+        tcp_msg_stru.data_len = stoi(strs[index]);
+
+        //说明数据接收不全，则放置incomplete_data中，等待下次与新数据合并处理
+        if (datas.size() < tcp_msg_stru.data_len)
+        {
+            string& str_buf = incomplete_data[cli_fd];
+            for (string& str: strs)
+            {
+                str_buf += str + ' ';
+            }
+            while (!datas.empty())
+            {
+                str_buf.push_back(datas.front());
+                
                 datas.pop();
             }
-            incomplete_data.insert(pair<ClientSocket, string >(cli_fd, tmp));
+            
             return std::move(result);
         }
         if (tcp_msg_stru.data_len > 0)
         {
+            
             tcp_msg_stru.data_buf = new char[tcp_msg_stru.data_len];
-            for (int i = 0; i < tcp_msg_stru.data_len; ++i)
+            for (uint32_t i = 0; i < tcp_msg_stru.data_len; ++i)
             {
                 tcp_msg_stru.data_buf[i] = datas.front();
                 datas.pop();
@@ -407,6 +418,7 @@ list<TCPMessage> TCPServerHelper::praiseDataToMsgStru(ClientSocket cli_fd, vecto
 
 ClientSocket TCPServerHelper::convertMsgStru(ClientSocket cli_fd, TCPMessage *tcp_msg_stru)
 {
+    
     if (tcp_msg_stru->msg_typ == tcp_standard_message::setting)
     {
         return setting_worker->praiseMessageStruct(cli_fd, tcp_msg_stru);
@@ -427,4 +439,11 @@ ClientSocket TCPServerHelper::convertMsgStru(ClientSocket cli_fd, TCPMessage *tc
         return 0;
     }
     return 0;
+}
+
+void TCPServerHelper::removeSocketData(ClientSocket cli_fd)
+{
+    auto it = incomplete_data.find(cli_fd);
+    if (it != incomplete_data.end())
+        incomplete_data.erase(it);
 }
