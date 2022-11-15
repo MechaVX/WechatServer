@@ -16,11 +16,12 @@ private:
     MysqlWorker *mysql;
     //规定返回值带fail表示执行失败，
     string userRegister(TCPMessage *msg_stru);
-    string userLogin(TCPMessage *msg_stru);
+    string userLogin(TCPMessage *msg_stru, ClientSocket cli_fd);
+    string userLogout(TCPMessage *msg_stru);
 public:
     SettingMessageWorker(MysqlWorker *sql_worker);
-
-    void praiseMessageStruct(TCPMessage *msg_stru);
+    //返回值表示要回复的客户端socket，返回0表示不需要回复
+    ClientSocket praiseMessageStruct(ClientSocket cli_fd, TCPMessage *msg_stru);
 };
 
 #endif

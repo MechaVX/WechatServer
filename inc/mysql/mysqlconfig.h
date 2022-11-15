@@ -3,6 +3,9 @@
 
 #include <vector>
 #include <string>
+using namespace std;
+
+
 
 namespace mysql_base_config
 {
@@ -13,10 +16,21 @@ extern const char *user;
 extern const char *passwd;
 extern const char *databasename;
 
-namespace tables_name
+namespace mysql_tables
 {
-extern const char *base_info;
-extern const char *onlined;
+
+class MysqlTable
+{
+public:
+    MysqlTable(const string& name, const vector<string>& columns_name);
+    const string name;
+    const vector<string> columns_name;
+};
+
+extern MysqlTable base_information;
+extern MysqlTable onlined_users;
+extern MysqlTable users_relationship;
+
 }
 
 

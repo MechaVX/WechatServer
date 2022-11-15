@@ -1,12 +1,13 @@
 cmake_minimum_required(VERSION 2.8.3)
 
-project(WeichatServer)
+project(WechatServer)
 
 include_directories(
 ${CMAKE_SOURCE_DIR}/inc 
 ${CMAKE_SOURCE_DIR}/inc/tcpserver
 ${CMAKE_SOURCE_DIR}/inc/mysql
 ${CMAKE_SOURCE_DIR}/inc/messageworkers
+${CMAKE_SOURCE_DIR}/inc/files
 )
 
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -g -Wall -std=gnu++0x")
@@ -16,7 +17,8 @@ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -g -Wall -O2 -std=c++11")
 aux_source_directory(./src/tcpserver SRC1)
 aux_source_directory(./src/mysql SRC2)
 aux_source_directory(./src/messageworkers SRC3)
-set(SRC ${SRC1} ${SRC2} ${SRC3})
+aux_source_directory(./src/files SRC4)
+set(SRC ${SRC1} ${SRC2} ${SRC3} ${SRC4})
 #set(SRCS main.cc ${SRC})
 #message("Create executable file: build/server_exe")
 #add_executable(server_exe ${SRCS})

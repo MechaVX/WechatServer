@@ -4,12 +4,15 @@
 
 vector<string> BaseMessageWorker::splitDataBySpace(const char *data_buf)
 {
+    vector<string> result;
+    if (data_buf == nullptr)
+        return result;
     int beg_index = 0;
     int end_index = 0;
     string str(data_buf);
     
     int length = str.length();
-    vector<string> result;
+    
     while (end_index < length)
     {
         while (str[end_index] != ' ' && end_index < length)

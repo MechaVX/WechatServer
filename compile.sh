@@ -14,4 +14,5 @@ fi
 if [ -n $1 ]; then
     exit 0
 fi
-./$1
+EXE=$1
+${EXE}

@@ -49,7 +49,10 @@ int main(int argc, char const *argv[])
                 if (length == nullptr)
                     cout << "no result return" << endl;
                 for (int i = 0; i < columns; ++i)
-                    cout << row[i] << ' ';
+                {
+                    cout << length[i] << ' ' << row[i] << ' ';
+                }
+                    
                 cout << endl;
             }
             if (result != nullptr)

@@ -3,3 +3,6 @@ build/*
 
 main_cc
 !main_cc/
+
+cache/groups/*
+cache/users/*

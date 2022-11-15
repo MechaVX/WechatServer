@@ -7,7 +7,7 @@
 #include <fcntl.h>
 
 const uint32_t TCPServerEpoll::max_epoll_size = 30;
-const uint32_t TCPServerEpoll::max_buf_size = 1024;
+const uint32_t TCPServerEpoll::max_buf_size = 5120;
 
 TCPServerEpoll::TCPServerEpoll(): data_buf(new char[max_buf_size]), running(false)
 {
@@ -25,6 +25,7 @@ BaseTCPServer* TCPServerEpoll::getInstance()
         tcp_server = new TCPServerEpoll;
     return tcp_server;
 }
+
 
 void TCPServerEpoll::beginWork()
 {
@@ -136,8 +137,8 @@ bool TCPServerEpoll::beginEpoll()
             //其他可读消息
             else
             {
-                memset(data_buf, 0, max_buf_size);
-                int nbytes = recv(evsarr[i].data.fd, data_buf, max_buf_size - 1, 0);
+                //memset(data_buf, 0, max_buf_size);
+                int nbytes = recv(evsarr[i].data.fd, data_buf, max_buf_size, 0);
                 if (nbytes > 0)
                 {
                     this->storeSocketReceiveData(evsarr[i].data.fd, nbytes);
@@ -187,6 +188,9 @@ void TCPServerEpoll::closeSocket(int sock)
     {
         close(sock);
         client_fds.erase(client_fds.find(sock));
+        //考虑到用户可能异常退出，这种情况下由服务器自己产生用户退出登录的数据包
+        int len = TCPMessage::createTCPMessageStream(setting, user_logout, { to_string(sock) }, data_buf);
+        this->storeSocketReceiveData(sock, len);
         return;
     }
     if (sock == 0)
@@ -197,5 +201,6 @@ void TCPServerEpoll::closeSocket(int sock)
         }
         close(server_fd);
     }
+
     
 }

@@ -9,10 +9,17 @@ const char *user = "root";
 const char *passwd = "123456";
 const char *databasename = "Wechat";
 
-namespace tables_name
+namespace mysql_tables
 {
-const char *base_info = "UserBaseInformation";
-const char *onlined = "OnlinedUsers";
+
+MysqlTable::MysqlTable(const string& name, const vector<string>& columns_name):
+            name(name),
+            columns_name(columns_name) {}
+
+MysqlTable base_information{ "UserBaseInformation", { "account", "password", "phone", "username" } };
+MysqlTable onlined_users{ "OnlinedUsers", { "account", "socket" } };
+MysqlTable users_relationship{ "UserRelationship", { "account", "friend_account", "friend_label", "friend_nickname" } };
+
 }
 
 }
