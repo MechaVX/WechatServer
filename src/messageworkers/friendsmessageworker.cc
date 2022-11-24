@@ -23,6 +23,10 @@ ClientSocket FriendsMessageWorker::praiseMessageStruct(ClientSocket cli_fd, TCPM
     {
         return agreeAddFriend(msg_stru);
     }
+    else if (msg_stru->msg_opt == send_friend_text)
+    {
+        return sendTextMessage(msg_stru);
+    }
     else
     {
         cout << "FriendsMessageWorker::praiseMessageStruct: unknow msg_opt";
@@ -107,4 +111,24 @@ ClientSocket FriendsMessageWorker::agreeAddFriend(TCPMessage *msg_stru)
         return cli_fd;
     }
     return 0;
+}
+
+ClientSocket FriendsMessageWorker::sendTextMessage(TCPMessage *msg_stru)
+{
+    vector<string> ret = mysql->executeSelectCommand(
+                { "socket" },
+                mysql_tables::onlined_users,
+                "account=\'" + string(msg_stru->receiver) + '\'',
+                1);
+    if (ret.empty())
+    {
+        //要查找的用户不在线，先储存消息
+        file_worker.storeTCPMessageToFile(msg_stru->receiver, msg_stru);
+    }
+    else
+    {
+        //如果在线，则返回要查找的用户的socket
+        ClientSocket cli_fd = stoi(ret[0]);
+        return cli_fd;
+    }
 }

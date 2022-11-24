@@ -18,6 +18,7 @@ private:
     void searchUser(TCPMessage *msg_stru);
     ClientSocket addFriend(TCPMessage *msg_stru);
     ClientSocket agreeAddFriend(TCPMessage *msg_stru);
+    ClientSocket sendTextMessage(TCPMessage *msg_stru);
 public:
     FriendsMessageWorker(MysqlWorker *sql_worker);
     //返回值表示要回复的客户端socket，返回0表示不需要回复

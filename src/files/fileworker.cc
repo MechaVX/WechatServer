@@ -73,11 +73,5 @@ void FileWorker::readTCPMessageFromFile(const string& account, list<TCPMessage>&
     //好像还没找到其他办法清空文件
     worker.open(file, ios::out);
     worker.close();
-    if (!msg_list.empty())
-    {
-        cout << "readTCPMessageFromFile" << endl;
-        for (auto& msg: msg_list)
-            cout << msg << endl;
-    }
     
 }
